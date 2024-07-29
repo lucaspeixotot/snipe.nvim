@@ -258,28 +258,15 @@ end
 --- with a provided pattern
 ---
 H.pattern_files_producer = function()
-    local function extract_filename_and_last_two_dirs(absolute_path)
-        -- Extract the file name
-        local file_name = string.match(absolute_path, "([^/]+)$")
-
-        -- Extract the last two directories
-        local last_two_dirs = string.match(absolute_path, ".*/([^/]+)/([^/]+)/[^/]+$")
-
-        -- Combine them
-        local result = (last_two_dirs or "") .. "/" .. file_name
-
-        return result
-    end
-
     local cwd = vim.fn.getcwd()
     local search_path = cwd .. "/**/*"
     local filepaths = vim.fn.glob(search_path, true, true)
     local meta_file, file_presentation = {}, {}
 
     for _, absolute_path in ipairs(filepaths) do
-        if absolute_path:find(H.snipe_pattern, 1, true) and vim.fn.isdirectory(absolute_path) ~= 1 then
+        if absolute_path:find(H.snipe_pattern) and vim.fn.isdirectory(absolute_path) ~= 1 then
             table.insert(meta_file, absolute_path)
-            table.insert(file_presentation, extract_filename_and_last_two_dirs(absolute_path))
+            table.insert(file_presentation, ".." .. string.sub(absolute_path, #cwd + 1))
         end
     end
 
