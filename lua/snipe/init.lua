@@ -139,36 +139,38 @@ Snipe.menu = function(producer, callback)
         local off = (state.page_index - 1) * max_height + 1
         local page_items = vim.list_slice(items, off, off + item_count)
 
-
         local annotated_page_items = H.annotate_with_tags(page_items)
         local annotated_raw_page_items = vim.tbl_map(function(ent)
             return table.concat(ent, " ")
         end, annotated_page_items)
 
+        local summary_line = { string.format("Page results [%s/%s]", state.page_index, page_count) }
+
+
+        H.add_buf_lines(state.buffer, summary_line, 0, 0)
         H.add_buf_lines(state.buffer, annotated_raw_page_items, 1, -1)
 
         if state.window == window_unset then
             if Snipe.config.ui.max_width ~= -1 then
-                state.window = H.create_window(state.buffer, #page_items, Snipe.config.ui.max_width)
+                state.window = H.create_window(state.buffer, #page_items + 1, Snipe.config.ui.max_width)
             else
                 local max = 1
                 for i, s in ipairs(annotated_raw_page_items) do
                     max = #s > #annotated_raw_page_items[max] and i or max
                 end
-                state.window = H.create_window(state.buffer, #page_items, #annotated_raw_page_items[max])
+                state.window = H.create_window(state.buffer, #page_items + 1, #annotated_raw_page_items[max])
             end
         end
 
-        vim.api.nvim_win_set_height(state.window, #page_items)
+        vim.api.nvim_win_set_height(state.window, #page_items + 1)
         vim.api.nvim_set_current_win(state.window)
         vim.api.nvim_win_set_hl_ns(state.window, H.highlight_ns)
 
-
         -- TODO investicate vim.fn.getcharstr() a bit more for this
-        local max_width = H.min_digits(#page_items, #H.hints.dictionary)
+        local max_width = H.min_digits(#page_items + 1, #H.hints.dictionary)
 
         for i, pair in ipairs(annotated_page_items) do
-            vim.api.nvim_buf_add_highlight(state.buffer, H.highlight_ns, "SnipeHint", i - 1, 0, max_width)
+            vim.api.nvim_buf_add_highlight(state.buffer, H.highlight_ns, "SnipeHint", i, 0, max_width)
 
             vim.keymap.set("n", pair[1], function()
                 close()
@@ -182,12 +184,11 @@ Snipe.menu = function(producer, callback)
             open()
         end, { nowait = true, buffer = state.buffer })
 
-        vim.keymap.set("n", Snipe.config.navigate.under_cursor, function()
-            local pos = vim.api.nvim_win_get_cursor(state.window)
-            close()
-            callback(meta[pos[1]], off + pos[1] - 1)
-        end, { nowait = true, buffer = state.buffer })
-
+        -- vim.keymap.set("n", Snipe.config.navigate.under_cursor, function()
+        --     local pos = vim.api.nvim_win_get_cursor(state.window)
+        --     close()
+        --     callback(meta[pos[1]], off + pos[1] - 1)
+        -- end, { nowait = true, buffer = state.buffer })
 
         vim.keymap.set("n", Snipe.config.navigate.prev_page, function()
             state.page_index = math.max(state.page_index - 1, 1)
