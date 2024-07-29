@@ -88,10 +88,15 @@ Snipe.menu = function(producer, callback)
         page_index = 1,
     }
 
+    local function is_open()
+        return vim.api.nvim_win_is_valid(state.window) or not window_unset
+    end
+
     local function close()
-        vim.api.nvim_win_close(state.window, true)
-        vim.api.nvim_buf_delete(state.buffer, { force = true })
-        state.window = window_unset
+        if is_open() then
+            vim.api.nvim_buf_delete(state.buffer, { force = true })
+            state.window = window_unset
+        end
     end
 
     local function open()
@@ -191,10 +196,6 @@ Snipe.menu = function(producer, callback)
         end, { nowait = true, buffer = state.buffer })
     end
 
-    local function is_open()
-        return vim.api.nvim_win_is_valid(state.window) or not window_unset
-    end
-
     return {
         open = open,
         close = close,
@@ -274,8 +275,12 @@ H.pattern_files_producer = function()
 end
 
 Snipe.update_pattern = function()
-    H.snipe_pattern = vim.fn.input("Set Snipe pattern: ")
-    Snipe.pattern_files_toggle()
+    local raw_pattern = vim.fn.input("Set Snipe pattern: ")
+    H.snipe_pattern = string.gsub(raw_pattern, " ", ".*")
+    vim.notify(H.snipe_pattern, vim.log.levels.WARN)
+    H.pattern_files_menu.close()
+    H.pattern_files_menu.open()
+    -- Snipe.pattern_files_toggle()
 end
 
 H.current_buffers_menu = Snipe.menu(H.current_buffers_producer, H.callback_open_buffer)
