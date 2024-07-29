@@ -2,7 +2,19 @@ local Snipe = {}
 local H = {}
 
 H.create_buffer = function()
-    return vim.api.nvim_create_buf(false, false)
+    local bufnr = vim.api.nvim_create_buf(false, false)
+
+    vim.bo[bufnr].modifiable = false
+    vim.bo[bufnr].bufhidden = "hide"
+    vim.bo[bufnr].buftype = "nofile"
+
+    return bufnr
+end
+
+H.add_buf_lines = function(bufnr, lines, start_line, end_line)
+    vim.bo[bufnr].modifiable = true
+    vim.api.nvim_buf_set_lines(bufnr, start_line, end_line, false, lines)
+    vim.bo[bufnr].modifiable = false
 end
 
 H.create_window = function(bufnr, height, width)
@@ -18,6 +30,12 @@ H.create_window = function(bufnr, height, width)
         height = height,
         zindex = 99,
     })
+
+    vim.wo[winnr].foldenable = false
+    vim.wo[winnr].wrap = false
+    vim.wo[winnr].cursorline = false
+    vim.wo[winnr].cursorcolumn = false
+    vim.wo[winnr].winhl = ""
 
     return winnr
 end
@@ -62,7 +80,7 @@ Snipe.config = {
 ---@return table { open = fun(), close = fun(), is_open = fun() } : Table of menu functions
 Snipe.menu = function(producer, callback)
     local window_unset = -1
-    local buffer = H.create_buffer()
+    local buffer = -1
     local state = {
         buffer = buffer,
         window = window_unset,
@@ -116,14 +134,13 @@ Snipe.menu = function(producer, callback)
         local off = (state.page_index - 1) * max_height + 1
         local page_items = vim.list_slice(items, off, off + item_count)
 
-        vim.bo[state.buffer].modifiable = true
 
         local annotated_page_items = H.annotate_with_tags(page_items)
         local annotated_raw_page_items = vim.tbl_map(function(ent)
             return table.concat(ent, " ")
         end, annotated_page_items)
 
-        vim.api.nvim_buf_set_lines(state.buffer, 0, -1, false, annotated_raw_page_items)
+        H.add_buf_lines(state.buffer, annotated_raw_page_items, 1, -1)
 
         if state.window == window_unset then
             if Snipe.config.ui.max_width ~= -1 then
@@ -141,10 +158,6 @@ Snipe.menu = function(producer, callback)
         vim.api.nvim_set_current_win(state.window)
         vim.api.nvim_win_set_hl_ns(state.window, H.highlight_ns)
 
-        vim.bo[state.buffer].modifiable = false
-        vim.wo[state.window].foldenable = false
-        vim.wo[state.window].wrap = false
-        vim.wo[state.window].cursorline = true
 
         -- TODO investicate vim.fn.getcharstr() a bit more for this
         local max_width = H.min_digits(#page_items, #H.hints.dictionary)
